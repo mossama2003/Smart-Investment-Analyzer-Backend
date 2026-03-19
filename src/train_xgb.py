@@ -1,3 +1,5 @@
+# src/train_xgb.py
+
 """
 train_xgb.py
 
@@ -13,12 +15,16 @@ from sklearn.model_selection import train_test_split
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error
 
-# ===== الإعدادات =====
-RAW_DATA_DIR = "../data/raw/"
-MODEL_DIR = "../models/xgboost/"
+# ===== تحديد مسار المشروع =====
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
+
+RAW_DATA_DIR = os.path.join(PROJECT_ROOT, "data", "raw")
+MODEL_DIR = os.path.join(PROJECT_ROOT, "models", "xgboost")
+
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-# قائمة ملفات Assets (غيرها حسب الحاجة)
+# ===== الملفات =====
 asset_files = ["ETEL.csv", "COMI.csv", "FWRY.csv"]
 
 # ===== التحميل + Features =====
@@ -33,18 +39,21 @@ for asset_name, df in all_assets.items():
     y = df['Close']
 
     # Train/Test Split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, shuffle=False
+    )
 
-    # نموذج XGBoost
+    # ===== Model =====
     model = XGBRegressor(n_estimators=500, learning_rate=0.05)
     model.fit(X_train, y_train)
 
-    # Evaluate
+    # ===== Evaluate =====
     y_pred = model.predict(X_test)
     mse = mean_squared_error(y_test, y_pred)
     print(f"MSE for {asset_name}: {mse}")
 
-    # Save Model
+    # ===== Save =====
     model_path = os.path.join(MODEL_DIR, f"{asset_name}_xgboost.pkl")
     joblib.dump(model, model_path)
-    print(f"Saved model to {model_path}\n")
+
+    print(f"✅ Saved model to {model_path}\n")

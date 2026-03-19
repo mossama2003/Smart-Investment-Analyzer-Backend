@@ -1,3 +1,5 @@
+# src/train_rl.py
+
 """
 train_rl.py
 
@@ -12,8 +14,11 @@ from stable_baselines3 import DQN
 from stable_baselines3.common.vec_env import DummyVecEnv
 import gymnasium as gym
 
-# ===== الإعدادات =====
-MODEL_DIR = "../models/rl/"
+# ===== تحديد مسار المشروع =====
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
+
+MODEL_DIR = os.path.join(PROJECT_ROOT, "models", "rl")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 asset_files = ["ETEL.csv", "COMI.csv", "FWRY.csv"]
@@ -87,7 +92,7 @@ class TradingEnv(gym.Env):
                 self.balance = self.shares_held * current_price
                 self.shares_held = 0
 
-        # ===== الانتقال للخطوة التالية =====
+        # ===== الانتقال =====
         self.current_step += 1
 
         terminated = self.current_step >= len(self.df) - 1
@@ -96,7 +101,6 @@ class TradingEnv(gym.Env):
         next_price = self.df['Close'].iloc[self.current_step]
         current_value = self._get_portfolio_value(next_price)
 
-        # ===== Reward أفضل =====
         reward = current_value - prev_value
 
         obs = (
@@ -128,8 +132,8 @@ for asset_name, df in all_assets.items():
 
     model.learn(total_timesteps=5000)
 
-    # Save Model
+    # ===== Save =====
     model_path = os.path.join(MODEL_DIR, f"{asset_name}_rl.zip")
     model.save(model_path)
 
-    print(f"Saved RL model to {model_path}\n")
+    print(f"✅ Saved RL model to {model_path}\n")
