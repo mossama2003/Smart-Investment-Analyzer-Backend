@@ -1,3 +1,5 @@
+# src/features.py
+
 """
 features.py
 
@@ -21,26 +23,6 @@ import pandas as pd
 import numpy as np
 
 def add_features(df, ma_windows=[5, 10, 20], rsi_period=14):
-    """
-    وظيفة الدالة:
-    ----------------
-    - تحسب مجموعة من المؤشرات المالية وتضيفها للـ DataFrame
-
-    Parameters:
-    -----------
-    df : pd.DataFrame
-        DataFrame الناتج من data_loader.py (مرتّب حسب التاريخ)
-    ma_windows : list
-        قائمة لفترات الـ Moving Average المراد حسابها
-    rsi_period : int
-        فترة RSI (عادة 14 يوم)
-
-    Returns:
-    --------
-    pd.DataFrame
-        DataFrame مع أعمدة جديدة: MA, RSI, MACD, Daily Return, Volatility
-    """
-
     df_feat = df.copy()
 
     # ----- Daily Return -----
@@ -78,6 +60,13 @@ def add_features(df, ma_windows=[5, 10, 20], rsi_period=14):
 # ===== Example Usage =====
 if __name__ == "__main__":
     from data_loader import load_asset_data
-    df = load_asset_data("AAPL.csv")
-    df_features = add_features(df)
-    print(df_features.head())
+    
+    # ✅ مثال مع الملفات الجديدة
+    test_files = ["ETEL.csv", "COMI.csv", "FWRY.csv"]
+    
+    for f in test_files:
+        df = load_asset_data(f)
+        if df is not None:
+            df_features = add_features(df)
+            print(f"===== {f} with Features =====")
+            print(df_features.head())

@@ -1,3 +1,5 @@
+# src/train_gru.py
+
 """
 train_gru.py
 
@@ -19,7 +21,8 @@ from tensorflow.keras.callbacks import EarlyStopping
 MODEL_DIR = "../models/gru/"
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-asset_files = ["AAPL.csv", "GOLD_ETF.csv", "EGX30.csv"]
+# ===== الملفات الجديدة =====
+asset_files = ["ETEL.csv", "COMI.csv", "FWRY.csv"]
 
 timesteps = 10  # طول الـ sequence
 features_num = None  # سيتم تحديده بعد Features
@@ -61,7 +64,7 @@ for asset_name, df in all_assets.items():
     es = EarlyStopping(monitor='loss', patience=10, restore_best_weights=True)
     model.fit(X_seq, y_seq, epochs=100, batch_size=16, callbacks=[es], verbose=1)
 
-    # Save Model
-    model_path = os.path.join(MODEL_DIR, f"{asset_name}_gru.h5")
+    # Save Model بصيغة .keras الحديثة
+    model_path = os.path.join(MODEL_DIR, f"{asset_name}_gru.keras")
     model.save(model_path)
     print(f"Saved GRU model to {model_path}\n")

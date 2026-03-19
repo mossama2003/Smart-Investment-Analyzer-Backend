@@ -19,7 +19,7 @@ MODEL_DIR = "../models/xgboost/"
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 # قائمة ملفات Assets (غيرها حسب الحاجة)
-asset_files = ["AAPL.csv", "GOLD_ETF.csv", "EGX30.csv"]
+asset_files = ["ETEL.csv", "COMI.csv", "FWRY.csv"]
 
 # ===== التحميل + Features =====
 all_assets = load_all_assets(asset_files)
