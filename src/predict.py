@@ -1,15 +1,5 @@
 # src/predict.py
 
-"""
-predict.py
-
-هذا الملف مسؤول عن:
-1️⃣ تحميل الموديلات المدربة (XGBoost / GRU / LSTM / RL)
-2️⃣ تجهيز البيانات الأخيرة من DataFrame لاستخدامها في التنبؤ
-3️⃣ عمل التنبؤ بأسعار المستقبلية لكل Asset
-4️⃣ عمل توصية (Action: Buy / Sell / Hold)
-"""
-
 import os
 import joblib
 import numpy as np
@@ -21,8 +11,10 @@ from features import add_features
 # ===== Logging =====
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# ===== Paths =====
-MODEL_DIR = "../models/"
+# ===== Paths (FIXED) =====
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MODEL_DIR = os.path.join(BASE_DIR, "models")
+
 TIMESTEPS = 10
 
 
@@ -54,11 +46,13 @@ def predict_asset(filename, model_type="xgboost"):
     feature_cols = get_features(df)
 
     try:
+        model_type = model_type.lower()
+
         # ===== XGBoost / RandomForest =====
-        if model_type.lower() in ["xgboost", "randomforest"]:
+        if model_type in ["xgboost", "randomforest"]:
             model_path = os.path.join(
                 MODEL_DIR,
-                model_type.lower(),
+                model_type,
                 filename.replace(".csv", f"_{model_type}.pkl")
             )
 
@@ -71,11 +65,11 @@ def predict_asset(filename, model_type="xgboost"):
             predicted_price = model.predict(X)[0]
 
         # ===== LSTM =====
-        elif model_type.lower() == "lstm":
+        elif model_type == "lstm":
             import tensorflow as tf
 
             model_path = os.path.join(
-                MODEL_DIR, "lstm", filename.replace(".csv", "_lstm.h5")
+                MODEL_DIR, "lstm", filename.replace(".csv", "_lstm.keras")
             )
 
             if not os.path.exists(model_path):
@@ -88,18 +82,17 @@ def predict_asset(filename, model_type="xgboost"):
 
             predicted_price = model.predict(X_seq, verbose=0)[0][0]
 
-        # ===== GRU =====
-        elif model_type.lower() == "gru":
+        # ===== GRU (FIXED) =====
+        elif model_type == "gru":
             import tensorflow as tf
 
             model_path = os.path.join(
-                MODEL_DIR, "gru", filename.replace(".csv", "_gru.h5")
+                MODEL_DIR, "gru", filename.replace(".csv", "_gru.keras")
             )
 
             if not os.path.exists(model_path):
                 raise FileNotFoundError(f"GRU model not found: {model_path}")
 
-            # 🔥 حل مشكلة mse هنا
             model = tf.keras.models.load_model(model_path, compile=False)
 
             X_seq = df[feature_cols].iloc[-TIMESTEPS:].values
@@ -108,7 +101,7 @@ def predict_asset(filename, model_type="xgboost"):
             predicted_price = model.predict(X_seq, verbose=0)[0][0]
 
         # ===== RL (DQN) =====
-        elif model_type.lower() == "rl":
+        elif model_type == "rl":
             from stable_baselines3 import DQN
 
             model_path = os.path.join(
@@ -159,7 +152,6 @@ def predict_portfolio(asset_files, model_type="xgboost"):
 if __name__ == "__main__":
     asset_files = ["ETEL.csv", "COMI.csv", "FWRY.csv"]
 
-    # غير هنا نوع الموديل 👇
     results = predict_portfolio(asset_files, model_type="gru")
 
     for asset, res in results.items():

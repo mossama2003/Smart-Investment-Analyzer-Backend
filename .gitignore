@@ -73,3 +73,11 @@ Thumbs.db
 dist/
 build/
 *.egg-info/
+
+
+
+new_env/
+__pycache__/
+*.pyc
+.venv/
+env/
