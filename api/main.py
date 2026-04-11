@@ -9,6 +9,46 @@ main.py
 5️⃣ عمل Prediction وعرض النتيجة
 """
 
+from fastapi import FastAPI
+from typing import List
+import sys
+from pathlib import Path
+
+# إضافة src للـ path
+sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
+
+from predict import predict_asset, predict_portfolio
+
+app = FastAPI()
+
+# ===== Root =====
+@app.get("/")
+def home():
+    return {"message": "Welcome to the Stock Prediction API! Use /predict for single asset or /predict-portfolio for multiple assets."}
+
+# ===== Predict Single =====
+@app.get("/predict")
+def predict_single(filename: str, model_type: str = "xgboost"):
+    price, action = predict_asset(filename, model_type)
+
+    return {
+        "asset": filename.replace(".csv", ""),
+        "model": model_type,
+        "predicted_price": price,
+        "action": action
+    }
+
+# ===== Predict Portfolio =====
+@app.post("/predict-portfolio")
+def predict_multiple(files: List[str], model_type: str = "xgboost"):
+    results = predict_portfolio(files, model_type)
+
+    return {
+        "model": model_type,
+        "results": results
+    }
+
+
 import os
 import sys
 from pathlib import Path
@@ -47,54 +87,3 @@ def train_models():
     except ImportError:
         logging.warning("train_rl.py not found")
 
-
-# ===== User Interaction =====
-def ask_user():
-    print("\n📊 Available Assets:")
-    for i, asset in enumerate(asset_files, 1):
-        print(f"{i}. {asset.replace('.csv', '')}")
-
-    try:
-        choice = int(input("\n👉 Choose asset number: "))
-        selected_file = asset_files[choice - 1]
-    except:
-        print("❌ Invalid choice")
-        return None, None
-
-    model_type = input("🤖 Choose model (xgboost / lstm / gru / rl): ").lower()
-
-    return selected_file, model_type
-
-
-# ===== Main Flow =====
-def main():
-    # لو عايز تشغل التدريب
-    # train_models()
-
-    selected_file, model_type = ask_user()
-
-    if not selected_file:
-        return
-
-    logging.info("Running prediction...")
-
-    price, action = predict_asset(selected_file, model_type=model_type)
-
-    print("\n📈 Result:")
-    print(f"Asset: {selected_file.replace('.csv','')}")
-    print(f"Predicted Price: {price}")
-    print(f"Recommended Action: {action}")
-
-    # ===== حفظ النتيجة =====
-    result_df = pd.DataFrame([{
-        "Asset": selected_file.replace(".csv",""),
-        "Predicted_Price": price,
-        "Action": action
-    }])
-
-    result_df.to_csv("prediction_result.csv", index=False)
-    logging.info("Result saved to prediction_result.csv")
-
-
-if __name__ == "__main__":
-    main()
