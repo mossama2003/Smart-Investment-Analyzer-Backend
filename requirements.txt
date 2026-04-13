@@ -5,3 +5,10 @@ scipy
 scikit-learn
 tensorflow==2.15
 matplotlib
+
+
+# pip install sqlalchemy passlib[bcrypt]
+
+# pip install bcrypt==4.0.1
+# pip install passlib[bcrypt]
+

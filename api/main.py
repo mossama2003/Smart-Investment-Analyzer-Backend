@@ -19,12 +19,68 @@ sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
 
 from predict import predict_asset, predict_portfolio
 
+from auth.database import SessionLocal
+from auth.models import User
+from auth.auth import hash_password, verify_password
+
+from fastapi import HTTPException
+
+
 app = FastAPI()
+
 
 # ===== Root =====
 @app.get("/")
 def home():
     return {"message": "Welcome to the Stock Prediction API! Use /predict for single asset or /predict-portfolio for multiple assets."}
+
+from fastapi import HTTPException
+
+@app.post("/register")
+def register(username: str, email: str, password: str):
+    db = SessionLocal()
+
+    try:
+        print("🔥 Register called")
+
+        user = db.query(User).filter(User.email == email).first()
+        print("✅ Checked existing user")
+
+        if user:
+            raise HTTPException(status_code=400, detail="Email already exists")
+
+        hashed = hash_password(password)
+        print("✅ Password hashed")
+
+        new_user = User(
+            username=username,
+            email=email,
+            password=hashed
+        )
+
+        db.add(new_user)
+        db.commit()
+        print("✅ User added")
+
+        return {"message": "User created successfully"}
+
+    except Exception as e:
+        print("❌ ERROR:", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        db.close()
+
+@app.post("/login")
+def login(email: str, password: str):
+    db = SessionLocal()
+
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user or not verify_password(password, user.password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    return {"message": "Login successful"}
 
 # ===== Predict Single =====
 @app.get("/predict")
