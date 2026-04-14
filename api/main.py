@@ -20,21 +20,24 @@ sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
 from predict import predict_asset, predict_portfolio
 
 from auth.database import SessionLocal
-from auth.models import User
+from auth.models import User, Asset
 from auth.auth import hash_password, verify_password
+from auth.models import Asset
+from api.enums import AssetEnum
+from src.predict import predict_asset
 
 from fastapi import HTTPException
 
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 # ===== Root =====
 @app.get("/")
 def home():
     return {"message": "Welcome to the Stock Prediction API! Use /predict for single asset or /predict-portfolio for multiple assets."}
-
-from fastapi import HTTPException
 
 @app.post("/register")
 def register(username: str, email: str, password: str):
@@ -82,17 +85,73 @@ def login(email: str, password: str):
 
     return {"message": "Login successful"}
 
-# ===== Predict Single =====
-@app.get("/predict")
-def predict_single(filename: str, model_type: str = "xgboost"):
-    price, action = predict_asset(filename, model_type)
+@app.get("/assets")
+def get_assets():
+    db = SessionLocal()
+    assets = db.query(Asset).all()
+
+    result = []
+    for a in assets:
+        result.append({
+            "id": a.id,
+            "name": a.name,
+            "image": a.image_url
+        })
+
+    db.close()
+    return result
+
+@app.get("/asset/{asset_id}")
+def get_asset(asset_id: int):
+    db = SessionLocal()
+
+    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+
+    if not asset:
+        return {"error": "Asset not found"}
+
+    db.close()
 
     return {
-        "asset": filename.replace(".csv", ""),
-        "model": model_type,
-        "predicted_price": price,
-        "action": action
-    }
+        "id": asset.id,
+        "name": asset.name,
+        "symbol": asset.symbol,
+        "image": f"http://127.0.0.1:8000/static/images/{asset.image_url}"        
+        }
+
+
+
+@app.get("/predict/{asset_id}")
+def predict(asset_id: int):
+    db = SessionLocal()
+
+    try:
+        # ===== 1) نجيب السهم من الداتابيز =====
+        asset = db.query(Asset).filter(Asset.id == asset_id).first()
+
+        if not asset:
+            raise HTTPException(status_code=404, detail="Asset not found")
+
+        # ===== 2) نحول ل filename =====
+        filename = f"{asset.name}.csv"
+
+        # ===== 3) نعمل prediction =====
+        price, action = predict_asset(filename)
+
+        # ===== 4) نرجع النتيجة =====
+        return {
+            "asset_id": asset.id,
+            "asset_name": asset.name,
+            "predicted_price": price,
+            "action": action
+        }
+
+    except Exception as e:
+        print("❌ ERROR:", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        db.close()
 
 # ===== Predict Portfolio =====
 @app.post("/predict-portfolio")
