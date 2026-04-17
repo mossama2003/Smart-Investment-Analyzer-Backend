@@ -29,12 +29,18 @@ from src.predict import predict_asset
 from fastapi import HTTPException
 
 from fastapi.staticfiles import StaticFiles
+from scheduler import start_scheduler
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 # ===== Root =====
+
+@app.on_event("startup")
+def start_background_tasks():
+    start_scheduler()
+
 @app.get("/")
 def home():
     return {"message": "Welcome to the Stock Prediction API! Use /predict for single asset or /predict-portfolio for multiple assets."}

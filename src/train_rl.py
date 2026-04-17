@@ -9,7 +9,7 @@ train_rl.py
 
 import os
 import numpy as np
-from data_loader import load_all_assets
+from src.data_loader import load_all_assets
 from stable_baselines3 import DQN
 from stable_baselines3.common.vec_env import DummyVecEnv
 import gymnasium as gym
