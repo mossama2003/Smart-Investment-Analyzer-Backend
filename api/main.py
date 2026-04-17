@@ -29,12 +29,18 @@ from src.predict import predict_asset
 from fastapi import HTTPException
 
 from fastapi.staticfiles import StaticFiles
+from scheduler import start_scheduler
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 # ===== Root =====
+
+@app.on_event("startup")
+def start_background_tasks():
+    start_scheduler()
+
 @app.get("/")
 def home():
     return {"message": "Welcome to the Stock Prediction API! Use /predict for single asset or /predict-portfolio for multiple assets."}
@@ -126,24 +132,21 @@ def predict(asset_id: int):
     db = SessionLocal()
 
     try:
-        # ===== 1) نجيب السهم من الداتابيز =====
         asset = db.query(Asset).filter(Asset.id == asset_id).first()
 
         if not asset:
             raise HTTPException(status_code=404, detail="Asset not found")
 
-        # ===== 2) نحول ل filename =====
         filename = f"{asset.name}.csv"
 
-        # ===== 3) نعمل prediction =====
-        price, action = predict_asset(filename)
+        # Always use ensemble: runs XGBoost + GRU + LSTM + RL and combines results
+        price, action = predict_asset(filename, model_type="ensemble")
 
-        # ===== 4) نرجع النتيجة =====
         return {
-            "asset_id": asset.id,
-            "asset_name": asset.name,
+            "asset_id":        asset.id,
+            "asset_name":      asset.name,
             "predicted_price": price,
-            "action": action
+            "action":          action,
         }
 
     except Exception as e:
@@ -201,4 +204,3 @@ def train_models():
         import train_rl
     except ImportError:
         logging.warning("train_rl.py not found")
-
