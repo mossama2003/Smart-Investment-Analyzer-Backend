@@ -1,7 +1,6 @@
 # src/train_gru.py
 
-"""
-train_gru.py
+"""train_gru.py
 
 FIXES applied:
 1. add_features() is now ENABLED so GRU trains on the same feature set used at prediction time.
@@ -19,6 +18,7 @@ from src.features import add_features
 
 from sklearn.preprocessing import MinMaxScaler
 
+
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import GRU, Dense
 from tensorflow.keras.callbacks import EarlyStopping
@@ -29,6 +29,8 @@ def train_gru():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.abspath(os.path.join(base_dir, ".."))
 
+    model_dir = os.path.join(project_root, "models", "gru")
+    os.makedirs(model_dir, exist_ok=True)
     model_dir = os.path.join(project_root, "models", "gru")
     os.makedirs(model_dir, exist_ok=True)
 
@@ -59,6 +61,8 @@ def train_gru():
 
         scaler_y = MinMaxScaler()
         y_scaled = scaler_y.fit_transform(y)
+        scaler_y = MinMaxScaler()
+        y_scaled = scaler_y.fit_transform(y)
 
         # Save scalers so predict.py can inverse-transform
         joblib.dump(scaler_X, os.path.join(model_dir, f"{asset_name}_gru_scaler_X.pkl"))
@@ -72,7 +76,10 @@ def train_gru():
 
         X_seq = np.array(X_seq)
         y_seq = np.array(y_seq)
+        X_seq = np.array(X_seq)
+        y_seq = np.array(y_seq)
 
+        features_num = X_seq.shape[2]
         features_num = X_seq.shape[2]
 
         # ===== GRU Model =====

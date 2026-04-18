@@ -1,21 +1,13 @@
 # src/train_all.py
 
-"""
-train_all.py
-
-FIXES:
-- train_rl is now a proper function (was top-level code before).
-- Consistent imports using src.* prefix.
-"""
-
 import logging
 import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-logging.basicConfig(level=logging.INFO)
 
+logging.basicConfig(level=logging.INFO)
 
 def train_all_models():
     print("🚀 Starting full training pipeline...\n")
@@ -38,7 +30,7 @@ def train_all_models():
     except Exception as e:
         print(f"❌ GRU failed: {e}\n")
 
-    # ===== LSTM (optional) =====
+    # ===== LSTM (اختياري) =====
     try:
         print("📈 Training LSTM...")
         from src.train_lstm import train_lstm
@@ -47,7 +39,7 @@ def train_all_models():
     except Exception as e:
         print(f"⚠️ LSTM skipped: {e}\n")
 
-    # ===== RL (optional) =====
+    # ===== RL (اختياري) =====
     try:
         print("🤖 Training RL...")
         from src.train_rl import train_rl

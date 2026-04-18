@@ -1,5 +1,3 @@
-# src/train_xgb.py
-
 """
 train_xgb.py
 
