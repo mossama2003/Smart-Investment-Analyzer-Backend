@@ -1,93 +1,74 @@
 """
-diagnose.py  — run from the project ROOT:
+diagnose.py — run from the project ROOT:
     python diagnose.py
 
-This script:
-1. Lists all scaler / model files found in models/
-2. For each asset, loads scaler_y and shows what inverse_transform(0.24) gives
-   → this tells you if the scaler is correctly recovering real prices
-3. Runs a full predict_asset() call and prints the result
-4. Compares predicted price against last known Close so you can judge quality
-
-Run BEFORE restarting the server to confirm the fix is working.
+Tests ensemble prediction for each asset and shows a per-model breakdown
+so you can see exactly how each model voted and what price it predicted.
 """
 
-import os, sys, joblib, numpy as np
-
-# ── make sure src is on the path ──────────────────────────────────────────────
+import os, sys, logging
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+
+logging.basicConfig(level=logging.WARNING)   # suppress INFO noise during diag
 
 from data_loader import load_asset_data
 from features    import add_features
 
-BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(BASE_DIR, "models")
-ASSETS    = ["ETEL", "COMI", "FWRY"]
+ASSETS = ["ETEL", "COMI", "FWRY"]
 
-
-def check_scalers():
-    print("\n" + "="*60)
-    print("SCALER DIAGNOSTIC")
-    print("="*60)
-    for asset in ASSETS:
-        print(f"\n── {asset} ──")
-        for folder, infix in [("xgboost",""), ("gru","gru_"), ("lstm","lstm_")]:
-            d = os.path.join(MODEL_DIR, folder)
-            sy_path = os.path.join(d, f"{asset}_{infix}scaler_y.pkl")
-            # fallback
-            if not os.path.exists(sy_path):
-                sy_path = os.path.join(d, f"{asset}_scaler_y.pkl")
-
-            if os.path.exists(sy_path):
-                sy = joblib.load(sy_path)
-                # show the real-price range the scaler was fit on
-                min_p = float(sy.data_min_[0])
-                max_p = float(sy.data_max_[0])
-                # inverse-transform a mid-range scaled value → should be ~mid of price range
-                sample = float(sy.inverse_transform([[0.5]])[0][0])
-                print(f"  [{folder:8s}] scaler_y found | "
-                      f"price range=[{min_p:.2f}, {max_p:.2f}] | "
-                      f"inverse(0.5)={sample:.4f}")
-            else:
-                print(f"  [{folder:8s}] scaler_y NOT FOUND at {sy_path}")
-
-
-def check_predictions():
-    print("\n" + "="*60)
-    print("PREDICTION DIAGNOSTIC  (model_type=xgboost)")
-    print("="*60)
-
-    # import the FIXED predict_asset
+def run():
     try:
-        from predict import predict_asset
-    except ImportError:
-        print("ERROR: could not import predict_asset — make sure you replaced src/predict.py")
+        from predict import predict_asset, RUNNERS, MODEL_WEIGHTS, _combine, _get_features
+        from features import add_features
+        from data_loader import load_asset_data
+    except ImportError as e:
+        print(f"ERROR importing predict.py: {e}")
         return
+
+    print("\n" + "="*70)
+    print("ENSEMBLE PREDICTION DIAGNOSTIC")
+    print("="*70)
 
     for asset in ASSETS:
         filename = f"{asset}.csv"
         df = load_asset_data(filename)
         if df is None:
-            print(f"  {asset}: could not load CSV")
-            continue
-        df = add_features(df)
-        last_close = float(df['Close'].iloc[-1])
-        last_date  = str(df['Date'].iloc[-1]) if 'Date' in df.columns else "?"
-
-        price, action = predict_asset(filename, model_type="xgboost")
-
-        if price is None:
-            print(f"  {asset}: prediction returned None")
+            print(f"\n{asset}: ❌ could not load CSV")
             continue
 
-        pct_diff = abs(price - last_close) / last_close * 100
-        ok = "✅" if pct_diff < 10 else "⚠️ " if pct_diff < 30 else "❌"
-        print(f"  {ok} {asset} | last_date={last_date} | "
-              f"last_close={last_close:.4f} | predicted={price:.4f} | "
-              f"diff={pct_diff:.1f}% | action={action}")
+        df           = add_features(df)
+        feature_cols = _get_features(df)
+        last_close   = float(df['Close'].iloc[-1])
+        last_date    = str(df.index[-1]) if df.index.name == 'Date' else str(df['Date'].iloc[-1]) if 'Date' in df.columns else "?"
+
+        print(f"\n── {asset}  (last_date={last_date}  last_close={last_close:.4f}) ──")
+
+        results = {}
+        for name, fn in RUNNERS.items():
+            try:
+                price, action = fn(asset, df, feature_cols, last_close)
+                results[name] = (price, action)
+                w = MODEL_WEIGHTS.get(name, 1)
+                p_str = f"{price:.4f}" if price is not None else "N/A (action only)"
+                ok = ""
+                if price is not None:
+                    diff = abs(price - last_close) / last_close * 100
+                    ok = "✅" if diff < 10 else ("⚠️ " if diff < 30 else "❌")
+                print(f"  {ok:3s} [{name:8s}] price={p_str:>12s}  action={action}  weight={w}")
+            except Exception as e:
+                results[name] = (None, None)
+                print(f"  ❓  [{name:8s}] skipped → {e}")
+
+        avg_price, final_action, _ = _combine(results, last_close)
+
+        pct = abs(avg_price - last_close) / last_close * 100 if avg_price else None
+        ok  = ("✅" if pct < 10 else ("⚠️ " if pct < 30 else "❌")) if pct is not None else "❓"
+        print(f"\n  {ok} ENSEMBLE → predicted={f'{avg_price:.4f}' if avg_price else 'N/A'}  "
+              f"diff={f'{pct:.1f}%' if pct else 'N/A'}  action={final_action}")
+
+    print("\n" + "="*70)
+    print("Done.")
 
 
 if __name__ == "__main__":
-    check_scalers()
-    check_predictions()
-    print("\nDone.")
+    run()

@@ -127,8 +127,18 @@ def get_asset(asset_id: int):
 
 
 
+## ── Drop-in replacement for the /predict/{asset_id} endpoint in api/main.py ──
+##
+## Replace ONLY the @app.get("/predict/{asset_id}") function with this block.
+## Everything else in main.py stays exactly the same.
+##
+## Changes:
+##   • model_type defaults to "ensemble" (runs all models + majority vote)
+##   • model_type can be overridden via query param, e.g. /predict/1?model_type=gru
+##   • Response now includes a "model_type" field so the client knows what was used
+
 @app.get("/predict/{asset_id}")
-def predict(asset_id: int):
+def predict(asset_id: int, model_type: str = "ensemble"):
     db = SessionLocal()
 
     try:
@@ -139,12 +149,12 @@ def predict(asset_id: int):
 
         filename = f"{asset.name}.csv"
 
-        # Always use ensemble: runs XGBoost + GRU + LSTM + RL and combines results
-        price, action = predict_asset(filename, model_type="ensemble")
+        price, action = predict_asset(filename, model_type=model_type)
 
         return {
             "asset_id":        asset.id,
             "asset_name":      asset.name,
+            "model_type":      model_type,
             "predicted_price": price,
             "action":          action,
         }
@@ -156,6 +166,7 @@ def predict(asset_id: int):
     finally:
         db.close()
 
+        
 # ===== Predict Portfolio =====
 @app.post("/predict-portfolio")
 def predict_multiple(files: List[str], model_type: str = "xgboost"):
